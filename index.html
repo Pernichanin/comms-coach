@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A scripted training chatbot on communicating unpopular company decisions, built from the PlayStation disc-discontinuation case. Student project.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Disc Transition Comms Coach</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: briefing-room console. Case file + question bank on the left, live coaching chat on the right; stacks with chat second on phones. */
+:root {
+  --bg: #e9eef0;
+  --surface: #ffffff;
+  --surface-2: #f3f6f7;
+  --ink: #15212a;
+  --muted: #586873;
+  --line: #d3dce0;
+  --accent: #0b6e69;
+  --accent-ink: #ffffff;
+  --accent-soft: #d9eeeb;
+  --signal: #b4531a;
+  --signal-soft: #fbeadb;
+  --shadow: 0 1px 2px rgba(21, 33, 42, .06), 0 8px 24px rgba(21, 33, 42, .06);
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1417; --surface: #141d21; --surface-2: #1a252a; --ink: #e2eaed; --muted: #92a3ab;
+    --line: #26343a; --accent: #43b9ae; --accent-ink: #062320; --accent-soft: #133532;
+    --signal: #f0a15e; --signal-soft: #3a2617; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1417; --surface: #141d21; --surface-2: #1a252a; --ink: #e2eaed; --muted: #92a3ab;
+  --line: #26343a; --accent: #43b9ae; --accent-ink: #062320; --accent-soft: #133532;
+  --signal: #f0a15e; --signal-soft: #3a2617; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 20px;
+  padding-block: 20px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  max-width: 1320px; margin: 0 auto;
+}
+.side {
+  min-width: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 22px;
+  padding-right: 4px;
+}
+
+/* Intro */
+.eyebrow {
+  font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); display: flex; align-items: center; gap: 8px;
+}
+.eyebrow::before { content: ""; width: 18px; height: 2px; background: currentColor; }
+h1 {
+  font-family: var(--f-display); font-stretch: 78%; font-weight: 800;
+  font-size: clamp(30px, 3.4vw, 40px); line-height: 1.02; letter-spacing: -.01em;
+  margin: 10px 0 12px; text-wrap: balance;
+}
+.intro p { margin: 0; color: var(--muted); max-width: 60ch; }
+.disclaimer { font-size: 12.5px; color: var(--muted); margin-top: 10px !important; }
+
+h2 {
+  font-family: var(--f-mono); font-weight: 500; font-size: 11.5px;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  margin: 0 0 10px;
+}
+
+/* Case file timeline */
+.timeline { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+.timeline li {
+  position: relative; padding: 0 0 12px 18px;
+  display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; font-size: 13.5px;
+}
+.timeline li::before {
+  content: ""; position: absolute; left: -5px; top: 6px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent);
+}
+.timeline li.pub::before { border-color: var(--signal); }
+.timeline time { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.timeline b { font-weight: 600; }
+.who { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; margin-right: 6px; color: var(--accent); }
+.pub .who { color: var(--signal); }
+
+/* Question bank */
+.bank details { border-top: 1px solid var(--line); }
+.bank details:last-of-type { border-bottom: 1px solid var(--line); }
+.bank summary {
+  cursor: pointer; list-style: none; padding: 10px 2px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  font-weight: 600; font-size: 14px;
+}
+.bank summary::-webkit-details-marker { display: none; }
+.bank summary .n { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
+.bank summary .n::after { content: " +"; }
+.bank details[open] summary .n::after { content: " −"; }
+.bank ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.bank li button {
+  width: 100%; text-align: left; background: none; border: 0; cursor: pointer;
+  padding: 6px 8px; border-radius: 8px; font-size: 13.5px; color: var(--muted);
+}
+.bank li button:hover { background: var(--surface-2); color: var(--ink); }
+
+/* Chat panel */
+.chat {
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.chat-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.bot-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center;
+  font-family: var(--f-display); font-stretch: 75%; font-weight: 800; font-size: 15px; letter-spacing: .02em;
+}
+.bot-id strong { display: block; font-family: var(--f-display); font-weight: 700; font-size: 16px; line-height: 1.2; }
+.status { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.ghost {
+  background: none; border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+  padding: 6px 12px; font-size: 13px; color: var(--muted); white-space: nowrap;
+}
+.ghost:hover { color: var(--ink); border-color: var(--muted); }
+
+.log {
+  flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth;
+  padding: 22px 18px 8px; display: flex; flex-direction: column; gap: 14px;
+  background:
+    radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--surface-2);
+}
+.msg { display: flex; gap: 10px; max-width: min(640px, 100%); animation: rise .32s cubic-bezier(.2,.7,.2,1) both; }
+.msg.user { align-self: flex-end; justify-content: flex-end; }
+.msg .mini { width: 28px; height: 28px; border-radius: 8px; font-size: 11px; flex: none; margin-top: 2px; }
+.bubble {
+  min-width: 0; padding: 12px 15px; border-radius: 4px var(--r) var(--r) var(--r);
+  background: var(--surface); border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.user .bubble { background: var(--accent); color: var(--accent-ink); border-color: transparent; border-radius: var(--r) 4px var(--r) var(--r); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.tag {
+  display: inline-block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; margin-bottom: 8px;
+}
+.bubble h3 { font-family: var(--f-display); font-weight: 700; font-size: 17px; line-height: 1.25; margin: 0 0 6px; text-wrap: balance; }
+.bubble p { margin: 0 0 8px; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble ul, .bubble ol { margin: 4px 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.say {
+  margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface-2);
+  border-radius: 0 8px 8px 0; font-size: 14px;
+}
+.say .lbl, .case .lbl { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 3px; color: var(--accent); }
+.case { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--signal-soft); font-size: 13.5px; }
+.case .lbl { color: var(--signal); }
+.meta { margin-top: 10px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 38px; animation: rise .32s .08s cubic-bezier(.2,.7,.2,1) both; }
+.chip {
+  background: var(--surface); border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 999px; padding: 6px 13px; font-size: 13.5px; cursor: pointer; text-align: left;
+  transition: background .15s, color .15s, transform .15s;
+}
+.chip:hover { background: var(--accent); color: var(--accent-ink); transform: translateY(-1px); }
+.chip:disabled { opacity: .45; cursor: default; transform: none; background: var(--surface); color: var(--accent); }
+
+.typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
+.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay: .15s; }
+.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+.composer {
+  display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--surface);
+}
+.composer input {
+  flex: 1; min-width: 0; font: inherit; color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px;
+}
+.composer input::placeholder { color: var(--muted); }
+.composer input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+.send {
+  border: 0; border-radius: 12px; padding: 0 18px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600;
+}
+.send:hover { filter: brightness(1.08); }
+
+/* Phones and narrow tablets: one column, chat right after the intro */
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { display: flex; flex-direction: column; height: auto; padding-block: 16px; gap: 22px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .side { display: contents; }
+  .intro { order: 1; }
+  .chat { order: 2; height: min(78svh, 720px); min-height: 460px; }
+  .casefile { order: 3; }
+  .bank { order: 4; }
+  .chips { padding-left: 0; }
+  .msg .mini { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="side">
+    <section class="intro">
+      <div class="eyebrow">Training simulation · C&amp;G Assignment 3</div>
+      <h1>Disc Transition Comms Coach</h1>
+      <p>Practise explaining a company decision to the public before it turns into a backlash. Ask a question in your own words, or pick one from the bank. Answers come from our report on Sony Interactive Entertainment's announcement ending disc production for new PlayStation games.</p>
+      <p class="disclaimer">Student project. Not affiliated with or endorsed by Sony Interactive Entertainment.</p>
+    </section>
+
+    <section class="casefile" aria-labelledby="case-h">
+      <h2 id="case-h">Case file · 2026</h2>
+      <ol class="timeline">
+        <li><time>1 Jul</time><span><span class="who">SIE</span>Disc end for new games from Jan 2028 announced. Blog post and X, <b>no FAQ</b>.</span></li>
+        <li class="pub"><time>1–7 Jul</time><span><span class="who">Public</span>Backlash, about <b>100,000 comments</b>. Sony stays silent.</span></li>
+        <li><time>7 Jul</time><span><span class="who">SIE</span>First post back is a fight-stick promo. It gets <b>ratioed</b>.</span></li>
+        <li class="pub"><time>9 Jul</time><span><span class="who">Public</span>"Don't Kill the Disc" petition passes <b>250,000</b>.</span></li>
+        <li><time>31 Jul</time><span><span class="who">SIE</span>CFO tells investors: <b>"no impact"</b> on the business.</span></li>
+        <li class="pub"><time>23–30 Aug</time><span><span class="who">Public</span><b>#PSBlackout</b> spending boycott. Petition 370,000+.</span></li>
+        <li class="pub"><time>Sep</time><span><span class="who">Partner</span>A publisher says Sony is "hearing" fans. Sony doesn't say it.</span></li>
+      </ol>
+    </section>
+
+    <section class="bank" aria-labelledby="bank-h">
+      <h2 id="bank-h">Question bank</h2>
+      <div id="bank"></div>
+    </section>
+  </div>
+
+  <main class="chat" aria-label="Coaching chat">
+    <header class="chat-head">
+      <div class="bot-id">
+        <div class="avatar" aria-hidden="true">CC</div>
+        <div>
+          <strong>Comms Coach</strong>
+          <span class="status" id="status">Scripted answers</span>
+        </div>
+      </div>
+      <button class="ghost" id="reset" type="button">Start over</button>
+    </header>
+    <div class="log" id="log" role="log" aria-live="polite"></div>
+    <form class="composer" id="composer" autocomplete="off">
+      <input id="msg" name="msg" type="text" aria-label="Your question" placeholder="Ask about timing, tone, spokespeople, resale…" maxlength="300">
+      <button class="send" type="submit">Send</button>
+    </form>
+  </main>
+</div>
+
+<script>
+/* =====================================================================
+   QUESTION BANK — edit answers here.
+   strong: phrases/words that clearly point to this answer (worth 3 points)
+   keys:   supporting words (worth 1 point each)
+   Text supports **bold**. Everything else is plain text.
+   ===================================================================== */
+const CATS = {
+  case:     'The case',
+  audience: 'Wrong audience',
+  timing:   'Too late',
+  tone:     'Defensive',
+  voice:    'Lost control of the voice',
+  clarity:  'Abstract and incomplete',
+  planning: 'Planning ahead'
+};
+
+const BANK = [
+  { id: 'what-went-wrong', cat: 'case',
+    q: 'What went wrong with the disc announcement?',
+    strong: ['what went wrong', 'went wrong', 'lessons', 'lesson learned', 'mistakes', 'what happened', 'case study'],
+    keys: ['wrong', 'summary', 'recap', 'overview', 'sony', 'playstation', 'disc'],
+    lead: 'The decision was always going to upset disc buyers. The way it was communicated made that worse in five ways.',
+    points: [
+      '**Wrong audience.** Investors heard the reasoning before players did.',
+      '**Too late.** About a week of silence let critics write the story.',
+      '**Defensive.** "No impact on our business" read as "your objections don\'t count".',
+      '**Lost control of the voice.** By September a publisher was explaining Sony\'s position for it.',
+      '**Abstract and incomplete.** Nothing on lending, resale, digital codes or long-term access.'
+    ],
+    related: ['announce-who', 'first-48', 'practical'] },
+
+  { id: 'announce-who', cat: 'audience',
+    q: 'Who should announce a major decision like this?',
+    strong: ['who should announce', 'who announces', 'who should sign', 'which executive', 'senior executive', 'ceo', 'signed by', 'who should post', 'who should say'],
+    keys: ['executive', 'senior', 'leadership', 'leader', 'signed', 'sign', 'announce', 'head'],
+    lead: 'A senior leader who owns the decision, speaking on the channels players actually use.',
+    points: [
+      'Sign the announcement with the name of the executive accountable for the platform.',
+      'Publish it on the blog and on social channels at the same time.',
+      'Give the same reasons you will later give investors.',
+      'Let communications staff support the message. They should not be its only face.'
+    ],
+    caseNote: 'The 1 July blog post was signed by a communications director. Players took that as a sign the decision was not worth an executive\'s name.',
+    related: ['investors-first', 'spokesperson', 'checklist'] },
+
+  { id: 'investors-first', cat: 'audience',
+    q: 'Can we explain the decision to investors before players?',
+    strong: ['investors first', 'before players', 'investor', 'shareholder', 'analyst'],
+    keys: ['financial', 'markets', 'stock', 'first', 'before', 'order', 'sequence'],
+    lead: 'No. Players should hear the reasoning first, or at the same moment. Never only in an investor setting.',
+    points: [
+      'Anything said on an earnings call is public within hours and will be quoted back to players.',
+      'Write one core explanation and use it for every audience. Change emphasis, not facts.',
+      'If investors need extra financial detail, publish the player-facing explanation before the call.'
+    ],
+    caseNote: 'Sony\'s only real explanation came on the 31 July earnings call, in answer to an analyst\'s question.',
+    related: ['earnings-call', 'audience-tailor', 'announce-who'] },
+
+  { id: 'audience-tailor', cat: 'audience',
+    q: 'How do messages differ for each stakeholder group?',
+    strong: ['stakeholder', 'different audiences', 'each audience', 'tailor', 'segment', 'different groups'],
+    keys: ['audience', 'collector', 'developer', 'publisher', 'customer', 'group', 'differ', 'different'],
+    lead: 'Keep the facts identical. Lead with what each group cares about most.',
+    points: [
+      '**Disc players:** price, access to their games, certainty of ownership.',
+      '**Collectors:** what happens to physical ownership, resale and collecting.',
+      '**Digital players:** downloads, account access, storage space, pricing.',
+      '**Developers and publishers:** sales impact and distribution options.',
+      '**Retailers:** shelf product, stock timelines, commercial impact.',
+      '**Employees:** what to say to customers, and what it means for reputation.',
+      '**Investors:** financial reasoning, kept consistent with what players heard.'
+    ],
+    related: ['retailers', 'employees', 'investors-first'] },
+
+  { id: 'retailers', cat: 'audience',
+    q: 'How do we communicate the change to retailers?',
+    strong: ['retailer', 'retail', 'store', 'shop', 'shelf', 'stock', 'inventory'],
+    keys: ['shops', 'stores', 'sell', 'boxes', 'box'],
+    lead: 'Tell retailers before the public does, and give them answers their staff can repeat at the counter.',
+    points: [
+      'Brief key retail partners ahead of the announcement, under embargo.',
+      'Explain what the boxed product will look like: a download code in place of a disc.',
+      'Confirm that games released on disc before January 2028 can still be reordered.',
+      'Give store staff a one-page FAQ for customer questions.'
+    ],
+    related: ['audience-tailor', 'practical', 'partners'] },
+
+  { id: 'employees', cat: 'audience',
+    q: 'What should employees be told, and when?',
+    strong: ['employee', 'staff', 'internal', 'colleague', 'customer service', 'support agent', 'frontline'],
+    keys: ['team', 'workers', 'morale', 'support'],
+    lead: 'Before the public, with the same FAQ customers will see and a clear route for questions they cannot answer.',
+    points: [
+      'Brief employees the day before, or the morning of, the announcement.',
+      'Give support teams approved answers and an escalation contact.',
+      'Remind staff not to speculate on social media, and tell them who will speak publicly.',
+      'Ask frontline teams to report recurring questions so the FAQ can be updated.'
+    ],
+    caseNote: 'The report notes employees care about customer relations and company reputation. Learning about a decision from social media hurts both.',
+    related: ['unknown', 'verify', 'faq-timing'] },
+
+  { id: 'faq-timing', cat: 'timing',
+    q: 'When should we publish an FAQ?',
+    strong: ['faq', 'frequently asked', 'questions page', 'help page', 'q and a'],
+    keys: ['alongside', 'same time', 'same day', 'publish', 'questions'],
+    lead: 'At the same moment as the announcement. An FAQ published a week later reads as damage control.',
+    points: [
+      'Draft it alongside the announcement and get it checked before launch day.',
+      'Cover the questions players will ask first: lending, resale, digital codes, offline play, access if an account closes.',
+      'Date it, and say when it will next be updated.',
+      'Link to it from every post about the decision.'
+    ],
+    caseNote: 'The 1 July announcement went out as a blog post and a post on X, with no FAQ.',
+    related: ['practical', 'update-page', 'checklist'] },
+
+  { id: 'first-48', cat: 'timing',
+    q: 'What do we do in the first 48 hours of a backlash?',
+    strong: ['backlash', 'first 48', '48 hours', 'first day', 'first week', 'outrage', 'crisis', 'angry'],
+    keys: ['hours', 'react', 'reaction', 'respond', 'response', 'urgent', 'quickly', 'fast', 'upset'],
+    lead: 'Acknowledge it publicly within a day, even if you have nothing new to announce.',
+    points: [
+      'Post a short holding statement: you have seen the reaction, and here is when you will say more.',
+      'Pause all scheduled promotional posts.',
+      'Put a team on the most common questions and answer them in the FAQ.',
+      'Give a date for the next update, then keep it.'
+    ],
+    say: 'We\'ve read your responses to Tuesday\'s announcement and we understand why many of you are disappointed. We\'ll publish answers to your most common questions on Thursday.',
+    caseNote: 'Sony was silent from 1 to 7 July while the announcement collected about 100,000 comments.',
+    related: ['silence', 'promotions', 'acknowledge-loss'] },
+
+  { id: 'silence', cat: 'timing',
+    q: 'Is it better to stay quiet until things calm down?',
+    strong: ['stay quiet', 'stay silent', 'keep quiet', 'calm down', 'ride it out', 'no comment', 'ignore'],
+    keys: ['quiet', 'silent', 'silence', 'wait', 'blow over'],
+    lead: 'No. If you are silent, critics write the story and fill the gap with their version of your reasons.',
+    points: [
+      'Silence reads as indifference, not caution.',
+      'Without your answers, claims about your motives get repeated unchallenged.',
+      'A short, honest holding statement is better than none.'
+    ],
+    caseNote: 'During Sony\'s week of silence, at least a dozen community notes challenged its claims about digital adoption.',
+    related: ['first-48', 'verify', 'update-page'] },
+
+  { id: 'promotions', cat: 'timing',
+    q: 'Should we keep posting marketing content during a backlash?',
+    strong: ['promotion', 'promo', 'marketing', 'advert', 'ad', 'ads', 'scheduled post', 'ratio', 'ratioed', 'business as usual', 'new product'],
+    keys: ['post', 'posting', 'social media', 'twitter', 'instagram', 'content', 'products', 'controller', 'launch'],
+    lead: 'No. Pause scheduled promotions and make your first post back about the issue.',
+    points: [
+      'Unrelated promotion looks like you are pretending nothing happened.',
+      'Resume normal posting only after you have addressed the main concerns.',
+      'Tell the social team who approves posts while the issue is live.'
+    ],
+    caseNote: 'Sony\'s first post after a week of silence was a fight-stick promotion. It drew about 2,000 replies in five minutes, all about discs.',
+    related: ['first-48', 'silence', 'measure-trust'] },
+
+  { id: 'acknowledge-loss', cat: 'tone',
+    q: 'How do we acknowledge what customers lose?',
+    strong: ['acknowledge', 'what they lose', 'what customers lose', 'empathy', 'sorry', 'apologise', 'apologize', 'sympathise', 'sympathize', 'downside', 'disadvantage'],
+    keys: ['loss', 'lose', 'feelings', 'emotion', 'collectors', 'collecting', 'admit', 'honest', 'ownership'],
+    lead: 'Name the losses specifically, then explain why you still made the decision.',
+    points: [
+      'Be concrete: lending to friends, reselling, collecting, playing years later without an account.',
+      'Do not argue that the losses are small. Let players judge that.',
+      'Say what you are doing about each loss, or say plainly that you are not.'
+    ],
+    say: 'We know this means you won\'t be able to lend, resell or shelve new games the way you have for decades. We made this decision because… Here is what we\'re doing to protect access to games you buy.',
+    related: ['avoid-phrases', 'practical', 'reverse'] },
+
+  { id: 'avoid-phrases', cat: 'tone',
+    q: 'What phrases should we avoid?',
+    strong: ['avoid saying', 'phrases', 'phrase', 'wording', 'what not to say', 'not say', 'never say', 'dont say', 'words to avoid', 'avoid'],
+    keys: ['avoid', 'say', 'words', 'language', 'tone', 'defensive', 'jargon'],
+    lead: 'Avoid anything that sounds like the company talking to itself.',
+    points: [
+      '**"No impact on our business."** True for investors, insulting to players.',
+      '**"Shifting trends in consumer preference."** Unless you show the data, it sounds like an excuse.',
+      '**"We hear you."** Only say it if you also say what changes.',
+      '**"You can still buy from retailers."** It dodges the ownership question.',
+      '**Corporate jargon** like "ecosystem" or "digital-first journey".'
+    ],
+    caseNote: 'The only reason the 1 July post gave was "shifting trends in consumer preference".',
+    related: ['earnings-call', 'acknowledge-loss', 'verify'] },
+
+  { id: 'earnings-call', cat: 'tone',
+    q: 'How should executives talk about the backlash on an earnings call?',
+    strong: ['earnings call', 'earnings', 'cfo', 'business impact', 'no impact', 'quarterly results'],
+    keys: ['impact', 'results', 'quarter', 'executive', 'dismissive', 'revenue', 'sales'],
+    lead: 'Assume every player will read the transcript. Speak to investors in a way players could hear too.',
+    points: [
+      'Report the numbers, but do not use them to dismiss the backlash.',
+      'Report trust measures, such as complaint volume and sentiment, alongside sales.',
+      'Describe a concrete process and timetable for reviewing feedback.'
+    ],
+    caseNote: 'On 31 July the CFO said Sony was "not seeing any impact" on the business. Within a month, #PSBlackout asked players to stop spending for a week.',
+    related: ['investors-first', 'measure-trust', 'petition'] },
+
+  { id: 'measure-trust', cat: 'tone',
+    q: 'How do we measure whether our communication is working?',
+    strong: ['measure', 'metrics', 'kpi', 'track', 'sentiment', 'working', 'effective', 'success'],
+    keys: ['trust', 'data', 'monitor', 'numbers', 'survey', 'feedback'],
+    lead: 'Measure trust and understanding, not just sales.',
+    points: [
+      'Sentiment and volume of replies about the decision.',
+      'Complaint and support-ticket themes, week by week.',
+      'FAQ views, and whether the same questions keep coming back.',
+      'Petition and hashtag growth.',
+      'Short customer surveys: "Do you understand what this change means for you?"'
+    ],
+    caseNote: 'The report recommends reviewing complaints, customer understanding and feedback alongside financial results.',
+    related: ['earnings-call', 'update-page', 'petition'] },
+
+  { id: 'petition', cat: 'tone',
+    q: 'How should we respond to a petition or boycott?',
+    strong: ['petition', 'boycott', 'blackout', 'psblackout', 'protest', 'signatures', 'hashtag'],
+    keys: ['campaign', 'organised', 'organized', 'movement', 'activists'],
+    lead: 'Treat it as feedback from your most committed customers, not as an attack.',
+    points: [
+      'Acknowledge it publicly and by name.',
+      'Say clearly what is open to change and what is not, and why.',
+      'Do not question whether the signatures are real or dismiss them as a vocal minority.',
+      'Offer a direct route for organisers to raise concerns.'
+    ],
+    caseNote: 'The "Don\'t Kill the Disc" petition reached 250,000 by 9 July and 370,000+ by late August, when #PSBlackout ran from 23 to 30 August.',
+    related: ['reverse', 'earnings-call', 'spokesperson'] },
+
+  { id: 'spokesperson', cat: 'voice',
+    q: 'Do we need an official spokesperson?',
+    strong: ['spokesperson', 'spokesman', 'spokeswoman', 'single voice', 'one voice', 'official voice', 'face of'],
+    keys: ['voice', 'official', 'represent', 'speak'],
+    lead: 'Yes. One named person who speaks for the company on this decision until it is settled.',
+    points: [
+      'Choose someone senior enough to be credible and available enough to keep talking.',
+      'Brief them on the full FAQ, including the unresolved questions.',
+      'Every statement should come from them or link back to the update page.'
+    ],
+    caseNote: 'By September, players were hearing about Sony\'s thinking from the head of NIS America, not from Sony.',
+    related: ['partners', 'update-page', 'announce-who'] },
+
+  { id: 'partners', cat: 'voice',
+    q: 'What if partners start speaking on our behalf?',
+    strong: ['on our behalf', 'speaking for us', 'speak for us', 'talks for us', 'third party', 'publisher', 'publishers'],
+    keys: ['behalf', 'partner', 'leak', 'rumour', 'rumor', 'external'],
+    lead: 'Brief partners in advance, and take the voice back with a direct statement.',
+    points: [
+      'Give publishers and retailers approved lines before the announcement.',
+      'If a partner speaks first, follow up quickly with your own on-record statement.',
+      'Thank them for their support, but make clear the update page is the official source.'
+    ],
+    caseNote: 'NIS America\'s Kenzo Saruhashi said Sony was "hearing" customer feedback. It showed dialogue was happening, but players got the update second-hand.',
+    related: ['spokesperson', 'retailers', 'update-page'] },
+
+  { id: 'update-page', cat: 'voice',
+    q: 'How do we keep people updated after the announcement?',
+    strong: ['update page', 'updates', 'follow up', 'follow-up', 'keep people updated', 'next steps', 'cadence'],
+    keys: ['update', 'regular', 'progress', 'timeline', 'ongoing', 'informed'],
+    lead: 'Keep one dated update page and post to it on a schedule you announce.',
+    points: [
+      '**What we heard:** the main concerns from players, retailers and publishers.',
+      '**What changes:** anything you adjusted because of that feedback.',
+      '**What doesn\'t, and why:** decisions that stand, with the reason.',
+      '**Next update:** the date.'
+    ],
+    related: ['spokesperson', 'faq-timing', 'measure-trust'] },
+
+  { id: 'reverse', cat: 'voice',
+    q: 'Should we reverse the decision if the backlash is big enough?',
+    strong: ['reverse', 'u turn', 'u-turn', 'back down', 'change our mind', 'reconsider', 'walk back', 'cancel the decision'],
+    keys: ['cancel', 'undo', 'change', 'pressure'],
+    lead: 'That is a business decision, not a communications one. Either way, be honest about it.',
+    points: [
+      'If the decision stands, say so clearly and explain why. Do not hint at a review that is not happening.',
+      'If parts can change, such as transition support or access guarantees, say which ones and when.',
+      'Never promise to "consider feedback" without saying how and by when.'
+    ],
+    caseNote: 'Sony said it would consider feedback but did not set out a process or timetable, and said it would not reverse course.',
+    related: ['petition', 'update-page', 'acknowledge-loss'] },
+
+  { id: 'practical', cat: 'clarity',
+    q: 'How do we explain digital codes, lending, resale and access?',
+    strong: ['digital code', 'download code', 'lending', 'lend', 'resale', 'resell', 'second hand', 'offline', 'ownership', 'own my games'],
+    keys: ['code', 'access', 'account', 'connectivity', 'internet', 'licence', 'license', 'sell', 'trade in', 'keep', 'library'],
+    lead: 'In plain language, one question at a time, in the words players use.',
+    points: [
+      'Can I lend a game to a friend?',
+      'Can I resell or trade in a game that comes as a code?',
+      'Do I need to be online to play?',
+      'What happens to my games if my account is closed or a game is removed from the store?',
+      'Can I still buy older disc games after January 2028?'
+    ],
+    say: 'Yes: games released on disc before January 2028 are unaffected and can still be reordered. New games sold in stores will come as a download code in the box.',
+    caseNote: 'The 1 July post said nothing on resale, lending or ownership. That left the questions to critics.',
+    related: ['faq-timing', 'unknown', 'verify'] },
+
+  { id: 'verify', cat: 'clarity',
+    q: 'Who should check an answer before it goes public?',
+    strong: ['fact check', 'fact', 'facts', 'verify', 'sign off', 'approval', 'approve', 'legal', 'community notes', 'misinformation'],
+    keys: ['check', 'review', 'accurate', 'accuracy', 'claim', 'claims', 'true', 'correct'],
+    lead: 'Legal, product, customer support and communications, together.',
+    points: [
+      '**Legal:** customer rights and anything that sounds like a promise.',
+      '**Product:** how codes, accounts and access actually work.',
+      '**Support:** whether the answer resolves real tickets.',
+      '**Communications:** plain language and consistent wording.',
+      'Back every number you quote with a source you could publish.'
+    ],
+    caseNote: 'At least a dozen community notes on X challenged Sony\'s claims about digital adoption.',
+    related: ['unknown', 'practical', 'avoid-phrases'] },
+
+  { id: 'unknown', cat: 'clarity',
+    q: 'What if we don\'t know the answer yet?',
+    strong: ['dont know', 'do not know', 'not sure', 'no answer', 'unknown', 'not decided', 'undecided', 'unanswered'],
+    keys: ['unsure', 'unclear', 'guess', 'later', 'tbd'],
+    lead: 'Say so, and say when you will know. Never guess.',
+    points: [
+      'Log the question so the whole team uses the same holding answer.',
+      'Give a date or a trigger for the real answer.',
+      'Add it to the FAQ as an open question. That shows you are not hiding it.'
+    ],
+    say: 'We haven\'t finalised how lending will work for games sold as codes. We\'ll confirm this on the update page by [date].',
+    related: ['verify', 'update-page', 'employees'] },
+
+  { id: 'checklist', cat: 'planning',
+    q: 'What does a good announcement checklist look like?',
+    strong: ['checklist', 'check list', 'template', 'playbook', 'launch plan', 'before announcing', 'prepare', 'preparation'],
+    keys: ['plan', 'steps', 'ready', 'next time', 'future', 'process'],
+    lead: 'Work through these in order before any decision that changes what customers get.',
+    ordered: true,
+    points: [
+      'Map stakeholders and what each will lose or gain.',
+      'Write one core explanation with the real reasons.',
+      'Draft the FAQ and have legal, product and support check it.',
+      'Choose the executive who will sign it and the spokesperson who will follow up.',
+      'Brief employees, retailers and publishers under embargo.',
+      'Publish the announcement, FAQ and update page together.',
+      'Pause unrelated promotions for the launch window.',
+      'Monitor sentiment and post the first update on the promised date.'
+    ],
+    related: ['announce-who', 'faq-timing', 'measure-trust'] }
+];
+
+const ROLES = {
+  employee:    { label: 'Employee', says: 'I\'m an employee', picks: ['employees', 'practical', 'unknown', 'avoid-phrases', 'verify', 'promotions'],
+                 intro: 'Employees are usually the first people customers ask. Good places to start:' },
+  manager:     { label: 'Manager', says: 'I\'m a manager', picks: ['announce-who', 'checklist', 'first-48', 'faq-timing', 'measure-trust', 'spokesperson'],
+                 intro: 'Managers decide who speaks, when and with what. Good places to start:' },
+  stakeholder: { label: 'Investor, partner or retailer', says: 'I\'m an investor, partner or retailer', picks: ['investors-first', 'earnings-call', 'retailers', 'partners', 'audience-tailor', 'update-page'],
+                 intro: 'Partners and investors need messages that match what players hear. Good places to start:' }
+};
+const DEFAULT_PICKS = ['what-went-wrong', 'announce-who', 'first-48', 'practical'];
+
+/* =====================================================================
+   MATCHING — keyword scoring, no AI.
+   ===================================================================== */
+const STOP = new Set('a an the and or but of to in on for with we our us i im you your is are be do does did should can could would will how what when who why which it its this that if as at by from about any there their them they my me so not no yes have has was were been more most some just get got really please tell'.split(' '));
+const norm = s => ' ' + s.toLowerCase().replace(/[’‘`']/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Each word allows a short suffix, so "investor" also matches "investors" and "announce" matches "announcement".
+function toRegex(term) {
+  const words = norm(term).trim().split(' ');
+  const parts = words.map(w => w.length >= 4 ? esc(w.replace(/e$/, '')) + '[a-z]{0,4}' : esc(w));
+  return new RegExp('\\b' + parts.join(' ') + '\\b');
+}
+BANK.forEach(e => {
+  e._strong = e.strong.map(t => ({ t, re: toRegex(t) }));
+  e._keys = e.keys.map(t => ({ t, re: toRegex(t) }));
+  e._title = [...new Set(norm(e.q).trim().split(' ').filter(w => w.length >= 4 && !STOP.has(w)))].map(t => ({ t, re: toRegex(t) }));
+});
+const byId = Object.fromEntries(BANK.map(e => [e.id, e]));
+
+function match(text) {
+  const n = norm(text);
+  const scored = BANK.map(e => {
+    let score = 0; const hits = [];
+    e._strong.forEach(k => { if (k.re.test(n)) { score += 3; hits.push(k.t); } });
+    e._keys.forEach(k => { if (k.re.test(n)) { score += 1; hits.push(k.t); } });
+    e._title.forEach(k => { if (k.re.test(n)) score += 0.5; });
+    return { e, score, hits };
+  }).filter(r => r.score > 0);
+  const pref = new Set(role ? ROLES[role].picks : []);
+  scored.sort((a, b) => b.score - a.score || pref.has(b.e.id) - pref.has(a.e.id));
+  return scored;
+}
+window.__match = t => match(t).slice(0, 3).map(r => [r.e.id, r.score, r.hits.join('|')]);
+
+const SMALL = [
+  { re: /^\s*(hi|hello|hey|hiya|good (morning|afternoon|evening))\b[\s!.]*$/i, reply: 'Hello. Ask me how to handle any part of announcing a difficult decision, or pick a starting point below.' },
+  { re: /\b(thanks|thank you|cheers|thx)\b/i, reply: 'You\'re welcome. Anything else you want to practise?' },
+  { re: /\b(help|what can you do|how does this work|what is this|who are you)\b/i, reply: 'I\'m a scripted coach with ' + BANK.length + ' prepared answers on announcing unpopular decisions, based on the disc case. Type a question with a key word like backlash, FAQ, spokesperson or resale, or browse the question bank.' }
+];
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+const log = document.getElementById('log');
+const input = document.getElementById('msg');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let role = null, busy = false;
+
+const escHtml = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = s => escHtml(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+function scrollDown() { requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); }
+
+function addMsg(who, html) {
+  const row = document.createElement('div');
+  row.className = 'msg ' + who;
+  row.innerHTML = (who === 'bot' ? '<div class="avatar mini" aria-hidden="true">CC</div>' : '') + '<div class="bubble">' + html + '</div>';
+  log.appendChild(row); scrollDown();
+  return row;
+}
+
+function addChips(items) {
+  const wrap = document.createElement('div');
+  wrap.className = 'chips';
+  items.forEach(({ label, onPick }) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.addEventListener('click', () => { if (busy) return; wrap.querySelectorAll('button').forEach(x => x.disabled = true); onPick(); });
+    wrap.appendChild(b);
+  });
+  log.appendChild(wrap); scrollDown();
+}
+const questionChips = ids => addChips(ids.filter(id => byId[id]).map(id => ({ label: byId[id].q, onPick: () => ask(byId[id].q, id) })));
+
+function botSay(html, then, delay) {
+  busy = true;
+  const t = addMsg('bot', '<span class="typing" aria-label="Coach is typing"><span></span><span></span><span></span></span>');
+  setTimeout(() => {
+    t.querySelector('.bubble').innerHTML = html;
+    t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+    busy = false; scrollDown();
+    if (then) then();
+  }, reduce ? 120 : (delay || 650));
+}
+
+function renderAnswer(e, hits) {
+  let h = '<span class="tag">' + escHtml(CATS[e.cat]) + '</span><h3>' + fmt(e.q) + '</h3><p>' + fmt(e.lead) + '</p>';
+  const tagName = e.ordered ? 'ol' : 'ul';
+  h += '<' + tagName + '>' + e.points.map(p => '<li>' + fmt(p) + '</li>').join('') + '</' + tagName + '>';
+  if (e.say) h += '<div class="say"><span class="lbl">Example wording</span>' + fmt(e.say) + '</div>';
+  if (e.caseNote) h += '<div class="case"><span class="lbl">From the case</span>' + fmt(e.caseNote) + '</div>';
+  if (hits && hits.length) h += '<div class="meta">Matched on: ' + escHtml(hits.slice(0, 4).join(', ')) + '</div>';
+  return h;
+}
+
+function answer(e, hits) {
+  const len = e.points.join('').length + e.lead.length;
+  botSay(renderAnswer(e, hits), () => questionChips(e.related), Math.min(1300, 500 + len * 0.8));
+}
+
+function ask(text, id) {
+  if (busy) return;
+  addMsg('user', escHtml(text));
+  if (id) return answer(byId[id]);
+
+  const results = match(text);
+  const best = results[0];
+  if (best && best.score >= 2.5) return answer(best.e, best.hits);
+
+  const small = SMALL.find(s => s.re.test(text));
+  if (small) return botSay('<p>' + escHtml(small.reply) + '</p>', () => questionChips(role ? ROLES[role].picks.slice(0, 4) : DEFAULT_PICKS));
+
+  if (best) {
+    return botSay('<p>I\'m not sure I\'ve understood. Did you mean one of these?</p>', () => questionChips(results.slice(0, 3).map(r => r.e.id)));
+  }
+  botSay('<p>I don\'t have a prepared answer for that. I only cover the ' + BANK.length + ' questions in my bank.</p><p>Try a key word such as <b>backlash</b>, <b>FAQ</b>, <b>spokesperson</b>, <b>investors</b> or <b>resale</b>, or pick one of these:</p>',
+    () => questionChips(role ? ROLES[role].picks.slice(0, 4) : DEFAULT_PICKS));
+}
+
+function chooseRole(key) {
+  role = key;
+  addMsg('user', escHtml(ROLES[key].says));
+  botSay('<p>' + escHtml(ROLES[key].intro) + '</p>', () => questionChips(ROLES[key].picks));
+}
+
+function start() {
+  log.innerHTML = ''; role = null; busy = false;
+  addMsg('bot', '<h3>Hi, I\'m the Comms Coach.</h3><p>I help you plan how to tell the public about a decision people won\'t like, using what went wrong when disc production for new PlayStation games was ended.</p><p>Which best describes you?</p>');
+  addChips(Object.entries(ROLES).map(([k, r]) => ({ label: r.label, onPick: () => chooseRole(k) })));
+}
+
+document.getElementById('composer').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const v = input.value.trim();
+  if (!v || busy) return;
+  input.value = '';
+  ask(v);
+});
+document.getElementById('reset').addEventListener('click', () => { start(); input.focus(); });
+
+// Sidebar question bank
+(function buildBank() {
+  const root = document.getElementById('bank');
+  Object.entries(CATS).forEach(([k, label], i) => {
+    const items = BANK.filter(e => e.cat === k);
+    if (!items.length) return;
+    const d = document.createElement('details');
+    if (i === 0) d.open = true;
+    d.innerHTML = '<summary><span>' + escHtml(label) + '</span><span class="n">' + items.length + '</span></summary><ul></ul>';
+    const ul = d.querySelector('ul');
+    items.forEach(e => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = e.q;
+      b.addEventListener('click', () => { ask(e.q, e.id); if (matchMedia('(max-width: 860px)').matches) document.querySelector('.chat').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' }); });
+      li.appendChild(b); ul.appendChild(li);
+    });
+    root.appendChild(d);
+  });
+  document.getElementById('status').textContent = 'Scripted answers · ' + BANK.length + ' topics';
+})();
+
+start();
+</script>
+
+</body>
+</html>
